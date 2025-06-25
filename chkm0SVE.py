@@ -4,16 +4,21 @@ import random
 from tkinter import Tk, filedialog
 from tqdm import tqdm, trange
 from PIL import Image, ImageDraw, ImageFont
+from fractions import Fraction
 import time
 
 def run_command(command):
-    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
 
 def get_frame_rate(video_path):
     command = ['ffprobe', '-v', '0', '-of', 'csv=p=0', '-select_streams', 'v:0',
                '-show_entries', 'stream=r_frame_rate', video_path]
-    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    frame_rate = eval(result.stdout.strip())
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    frame_rate_str = result.stdout.strip()
+    try:
+        frame_rate = float(Fraction(frame_rate_str))
+    except (ValueError, ZeroDivisionError):
+        frame_rate = 0.0
     return frame_rate
 
 def get_video_duration(video_path):
@@ -36,7 +41,9 @@ def create_comparison_image(old_screenshot_paths, new_screenshot_paths, output_p
     
     width, height = old_images[0].size
     num_screenshots = len(old_images)
-    comparison_image = Image.new('RGB', (width * num_screenshots, height))
+    # allocate extra space on the right for listing the applied enhancements
+    extra_width = 200
+    comparison_image = Image.new('RGB', (width * num_screenshots + extra_width, height))
     
     for i in range(num_screenshots):
         comparison_image.paste(old_images[i], (i * width, 0))
